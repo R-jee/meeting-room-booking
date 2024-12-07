@@ -10,13 +10,28 @@ class BookingController extends Controller
 {
     public function __construct()
     {
-        $this->middleware('permission:manage bookings')->except(['index']);
+        $this->middleware('role:admin')->except(['index', 'publicCalendar']);
     }
 
     public function index()
     {
-        $bookings = Booking::with('employee')->get();
+        // Retrieve bookings with employees (organizer and participants) with pagination
+        $bookings = Booking::with('employee', 'employees')->paginate(5);
         return view('bookings.index', compact('bookings'));
+    }
+
+
+    public function show($id)
+    {
+        $booking = Booking::with('employee', 'employees')->findOrFail($id);
+        return view('bookings.show', compact('booking'));
+    }
+
+
+    public function publicCalendar()
+    {
+        $bookings = Booking::with('employee')->get();
+        return view('calendar', compact('bookings'));
     }
 
     public function create()
@@ -32,6 +47,8 @@ class BookingController extends Controller
             'employee_id' => 'required|exists:employees,id',
             'start_time' => 'required|date',
             'end_time' => 'required|date|after:start_time',
+            'participants' => 'nullable|array',
+            'participants.*' => 'exists:employees,id',
         ]);
 
         // Check for conflicting bookings
@@ -40,11 +57,69 @@ class BookingController extends Controller
             ->exists();
 
         if ($conflict) {
-            return back()->withErrors('The meeting room is already booked for this time.');
+            return back()->withErrors(['conflict' => 'The meeting room is already booked for this time.'])->withInput();
         }
 
-        Booking::create($request->all());
+        // Create the booking
+        $booking = Booking::create([
+            'title' => $request->title,
+            'employee_id' => $request->employee_id,
+            'start_time' => $request->start_time,
+            'end_time' => $request->end_time,
+        ]);
+
+        // Attach the participants to the booking
+        if ($request->has('participants')) {
+            $booking->employees()->attach($request->participants);
+        }
+
         return redirect()->route('bookings.index')->with('success', 'Booking created successfully.');
+    }
+
+
+    public function edit($id)
+    {
+        $booking = Booking::with('employees')->findOrFail($id);
+        $employees = Employee::all();
+        return view('bookings.edit', compact('booking', 'employees'));
+    }
+
+    public function update(Request $request, $id)
+    {
+        $request->validate([
+            'title' => 'required|string|max:255',
+            'employee_id' => 'required|exists:employees,id',
+            'start_time' => 'required|date',
+            'end_time' => 'required|date|after:start_time',
+            'participants' => 'nullable|array',
+            'participants.*' => 'exists:employees,id',
+        ]);
+
+        // Check for conflicting bookings
+        $conflict = Booking::where('id', '!=', $id)
+            ->where('start_time', '<', $request->end_time)
+            ->where('end_time', '>', $request->start_time)
+            ->exists();
+
+        if ($conflict) {
+            return back()->withErrors(['conflict' => 'The meeting room is already booked for this time.'])->withInput();
+        }
+
+        // Update the booking
+        $booking = Booking::findOrFail($id);
+        $booking->update([
+            'title' => $request->title,
+            'employee_id' => $request->employee_id,
+            'start_time' => $request->start_time,
+            'end_time' => $request->end_time,
+        ]);
+
+        // Sync the participants (this will remove old and add new ones)
+        if ($request->has('participants')) {
+            $booking->employees()->sync($request->participants);
+        }
+
+        return redirect()->route('bookings.index')->with('success', 'Booking updated successfully.');
     }
 
     public function destroy(Booking $booking)
@@ -53,4 +128,3 @@ class BookingController extends Controller
         return redirect()->route('bookings.index')->with('success', 'Booking deleted successfully.');
     }
 }
-

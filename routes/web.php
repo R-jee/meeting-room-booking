@@ -1,37 +1,38 @@
 <?php
 
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\BookingController;
-
-
+use App\Http\Controllers\RolePermissionController;
 
 /*
 |--------------------------------------------------------------------------
 | Web Routes
 |--------------------------------------------------------------------------
-|
-| Here is where you can register web routes for your application. These
-| routes are loaded by the RouteServiceProvider and all of them will
-| be assigned to the "web" middleware group. Make something great!
-|
 */
 
-Route::get('/', function () {
-    return view('welcome');
-});
+Route::get('/', [BookingController::class, 'publicCalendar'])->name('public-calendar');
+
+
+Route::get('/home', [App\Http\Controllers\Controller::class, 'noPermission']);
 
 Auth::routes();
 
-Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
-
 Route::middleware(['auth'])->group(function () {
-
     Route::middleware(['role:admin'])->group(function () {
         Route::resource('employees', EmployeeController::class)->except(['show']);
         Route::resource('bookings', BookingController::class)->except(['show']);
     });
-
-    Route::get('/view-meetings', [BookingController::class, 'index'])->name('home')->middleware('permission:view calendar')->name('show-meetings');
 });
+
+
+Route::middleware(['auth', 'role:admin'])->group(function () {
+    Route::get('/assign-roles', [RolePermissionController::class, 'index'])->name('assign.roles');
+    Route::post('/assign-roles', [RolePermissionController::class, 'store'])->name('assign.roles.store');
+
+    Route::get('/users-with-roles', [RolePermissionController::class, 'viewUsersWithRoles'])->name('users.roles.view');
+    Route::get('/roles', [RolePermissionController::class, 'viewRoles'])->name('roles.view');
+    Route::get('/permissions', [RolePermissionController::class, 'viewPermissions'])->name('permissions.view');
+});
+
+Route::get('/calendar', [BookingController::class, 'publicCalendar'])->name('calendar');
