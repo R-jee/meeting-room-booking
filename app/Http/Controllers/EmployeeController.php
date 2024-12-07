@@ -9,14 +9,16 @@ class EmployeeController extends Controller
 {
     public function __construct()
     {
-        $this->middleware('permission:manage employees');
+        $this->middleware('role:admin');
     }
 
     public function index()
     {
-        $employees = Employee::all();
+        $employees = Employee::paginate(10); // Paginate results, 10 per page
         return view('employees.index', compact('employees'));
     }
+
+
 
     public function create()
     {
@@ -58,4 +60,3 @@ class EmployeeController extends Controller
         return redirect()->route('employees.index')->with('success', 'Employee deleted successfully.');
     }
 }
-
