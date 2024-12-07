@@ -1,6 +1,11 @@
 <?php
 
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\EmployeeController;
+use App\Http\Controllers\BookingController;
+
+
 
 /*
 |--------------------------------------------------------------------------
@@ -20,3 +25,13 @@ Route::get('/', function () {
 Auth::routes();
 
 Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
+
+Route::middleware(['auth'])->group(function () {
+
+    Route::middleware(['role:admin'])->group(function () {
+        Route::resource('employees', EmployeeController::class)->except(['show']);
+        Route::resource('bookings', BookingController::class)->except(['show']);
+    });
+
+    Route::get('/view-meetings', [BookingController::class, 'index'])->name('home')->middleware('permission:view calendar')->name('show-meetings');
+});
