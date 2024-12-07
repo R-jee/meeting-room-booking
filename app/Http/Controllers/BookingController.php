@@ -10,7 +10,8 @@ class BookingController extends Controller
 {
     public function __construct()
     {
-        $this->middleware('role:admin')->except(['index', 'publicCalendar']);
+        // Only allow logged-in users for booking management, but allow guest for creating a booking
+        $this->middleware(['auth', 'role:admin'])->except(['index', 'publicCalendar', 'create', 'store']);
     }
 
     public function index()
@@ -20,19 +21,36 @@ class BookingController extends Controller
         return view('bookings.index', compact('bookings'));
     }
 
-
     public function show($id)
     {
         $booking = Booking::with('employee', 'employees')->findOrFail($id);
         return view('bookings.show', compact('booking'));
     }
 
-
     public function publicCalendar()
     {
         $bookings = Booking::with('employee')->get();
-        return view('calendar', compact('bookings'));
+
+        $events = $bookings->map(function ($booking) {
+            return [
+                'title' => $booking->title . ' (' . $booking->employee->name . ')',
+                'start' => $booking->start_time,
+                'end'   => $booking->end_time,
+            ];
+        });
+
+        return view('calendar', [
+            'events' => $events->toJson(),
+        ]);
     }
+
+
+
+    //    public function publicCalendar()
+    //    {
+    //        $bookings = Booking::with('employee')->get();
+    //        return view('calendar', compact('bookings'));
+    //    }
 
     public function create()
     {
@@ -42,14 +60,18 @@ class BookingController extends Controller
 
     public function store(Request $request)
     {
+        // Validate the request
         $request->validate([
             'title' => 'required|string|max:255',
-            'employee_id' => 'required|exists:employees,id',
+            'employee_id' => 'nullable|exists:employees,id', // Optional for guests
+            'guest_name' => 'nullable|string|max:255', // For guest name
+            'guest_email' => 'nullable|email|max:255', // For guest email
             'start_time' => 'required|date',
             'end_time' => 'required|date|after:start_time',
             'participants' => 'nullable|array',
             'participants.*' => 'exists:employees,id',
         ]);
+
 
         // Check for conflicting bookings
         $conflict = Booking::where('start_time', '<', $request->end_time)
