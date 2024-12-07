@@ -45,7 +45,6 @@ class BookingController extends Controller
     }
 
 
-
     //    public function publicCalendar()
     //    {
     //        $bookings = Booking::with('employee')->get();
