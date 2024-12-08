@@ -8,6 +8,9 @@
             <ul class="navbar-nav ms-auto">
                 @guest
                     <li class="nav-item">
+                        <a class="nav-link" href="{{ route('guest-bookings.create') }}">Room Booking</a>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link" href="{{ route('login') }}">Login</a>
                     </li>
                 @else
