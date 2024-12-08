@@ -1,12 +1,13 @@
 @extends('layouts.app')
 
-@include('calendar.popup')
 @section('content')
     <div class="container mt-5">
         <h2>Meeting Room Calendar</h2>
         <div id="calendar"></div>
     </div>
 @endsection
+
+@include('calendar.popup')
 
 @push('scripts')
     <!-- FullCalendar CDN -->
